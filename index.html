@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>PineBridge - ID en cours</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2e39; --txt:#e6e6e6; --mut:#8a8f98; --green:#3cc878; --amber:#e6b673; --red:#ef6b6b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif; line-height:1.5; }
+  main { max-width: 980px; margin: 0 auto; padding: 28px 16px 40px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--mut); font-size: 14px; margin-bottom: 20px; }
+  .bar { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px; margin-bottom:18px; font-size:14px; }
+  .bar b { font-size:18px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--mut); display:inline-block; margin-right:6px; }
+  .dot.ok { background:var(--green); box-shadow:0 0 8px var(--green); }
+  .dot.ko { background:var(--red); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+  .id { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 14px 12px; min-height:92px; display:flex; flex-direction:column; justify-content:space-between; transition:border-color .2s, background .2s; }
+  .id .n { font-size:20px; font-weight:700; }
+  .id .st { font-size:12px; color:var(--mut); margin-top:2px; }
+  .id.on { border-color:#245b3c; background:#101d16; }
+  .id.cf { border-color:#6b4a1f; background:#221a10; }
+  .btn { align-self:flex-start; margin-top:10px; font-size:12px; font-weight:700; letter-spacing:.4px; padding:5px 12px; border-radius:999px; background:var(--green); color:#06210f; text-transform:uppercase; }
+  .btn.cf { background:var(--amber); color:#2a1700; }
+  .err { color:var(--red); }
+  footer { color:var(--mut); font-size:12px; margin-top:22px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PineBridge &mdash; ID en cours</h1>
+  <div class="sub">Un ID passe en vert « utilisé » quand un EA est connecté dessus. Dès que l'EA se déconnecte, le bouton disparaît.</div>
+
+  <div class="bar">
+    <span><span class="dot" id="dot"></span><span id="conn">Connexion...</span></span>
+    <span><b id="nOn">-</b> utilisé(s)</span>
+    <span><b id="nOff">-</b> libre(s)</span>
+    <span id="nCf" style="display:none"><b id="nCfv">0</b> en conflit</span>
+    <span style="margin-left:auto;color:var(--mut)" id="upd"></span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>Les numéros correspondent à ta liste privée d'ID. Mise à jour automatique toutes les 5 secondes.</footer>
+</main>
+
+<script>
+var API = "https://pinebridge-vps1.duckdns.org/personal/status";
+var N = 20;
+var grid = document.getElementById("grid");
+for (var i = 1; i <= N; i++) {
+  var d = document.createElement("div");
+  d.className = "id"; d.id = "id" + i;
+  d.innerHTML = '<div><div class="n">ID ' + i + '</div><div class="st">libre</div></div><div class="slot"></div>';
+  grid.appendChild(d);
+}
+
+function render(data) {
+  var on = 0, cf = 0;
+  data.slots.forEach(function (s) {
+    var el = document.getElementById("id" + s.n);
+    if (!el) return;
+    var st = el.querySelector(".st"), slot = el.querySelector(".slot");
+    el.className = "id" + (s.conflict ? " cf" : (s.online ? " on" : ""));
+    if (s.conflict) { st.textContent = "2 EA sur le meme ID"; slot.innerHTML = '<span class="btn cf">Conflit</span>'; on++; cf++; }
+    else if (s.online) { st.textContent = "connecte"; slot.innerHTML = '<span class="btn">Utilisé</span>'; on++; }
+    else { st.textContent = "libre"; slot.innerHTML = ""; }
+  });
+  document.getElementById("nOn").textContent = on;
+  document.getElementById("nOff").textContent = N - on;
+  document.getElementById("nCf").style.display = cf ? "" : "none";
+  document.getElementById("nCfv").textContent = cf;
+  document.getElementById("dot").className = "dot ok";
+  document.getElementById("conn").textContent = "Serveur en ligne";
+  document.getElementById("upd").textContent = "mis a jour " + new Date().toLocaleTimeString("fr-FR");
+}
+
+function fail() {
+  document.getElementById("dot").className = "dot ko";
+  var c = document.getElementById("conn"); c.textContent = "Serveur injoignable"; c.className = "err";
+  for (var i = 1; i <= N; i++) { var el = document.getElementById("id" + i); el.className = "id"; el.querySelector(".slot").innerHTML = ""; el.querySelector(".st").textContent = "?"; }
+  document.getElementById("nOn").textContent = "-"; document.getElementById("nOff").textContent = "-";
+}
+
+function tick() {
+  fetch(API, { cache: "no-store" }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (d) {
+    document.getElementById("conn").className = ""; render(d);
+  }).catch(fail);
+}
+tick(); setInterval(tick, 5000);
+</script>
+</body>
+</html>
